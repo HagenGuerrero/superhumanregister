@@ -1,4 +1,4 @@
-import type { Message, MessageTemplate, MessageThread } from "../types";
+import type { Message, MessageThread } from "../types";
 
 const MOCK_THREADS: MessageThread[] = [
   {
@@ -115,13 +115,6 @@ const MOCK_THREADS: MessageThread[] = [
   },
 ];
 
-const MOCK_TEMPLATES: MessageTemplate[] = [
-  { id: "t-ack", label: "Acknowledge", body: "Acknowledged — logging this to your dossier now." },
-  { id: "t-details", label: "Request Details", body: "Could you file a full incident report? I need specifics for the record." },
-  { id: "t-standby", label: "Standing By", body: "Received. The Register is standing by for further updates." },
-  { id: "t-escalate", label: "Escalate", body: "Flagging this for editorial review — I'll follow up shortly." },
-];
-
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
@@ -132,10 +125,6 @@ function clone<T>(value: T): T {
 
 export async function getThreads(): Promise<MessageThread[]> {
   return clone(MOCK_THREADS);
-}
-
-export async function getTemplates(): Promise<MessageTemplate[]> {
-  return clone(MOCK_TEMPLATES);
 }
 
 export async function sendReply(threadId: string, body: string, replyToId?: string): Promise<Message> {

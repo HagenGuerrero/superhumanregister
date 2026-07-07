@@ -80,9 +80,3 @@ export interface MessageThread {
   updatedAt: string;
   messages: Message[];
 }
-
-export interface MessageTemplate {
-  id: string;
-  label: string;
-  body: string;
-}

@@ -1,5 +1,5 @@
-import { useEffect, useState, type CSSProperties } from "react";
-import type { House, Message, MessageTemplate, MessageThread } from "../types";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import type { House, Message, MessageThread } from "../types";
 
 export type MessageThreadListItem = MessageThread & {
   name: string;
@@ -20,19 +20,10 @@ const aiBadge: CSSProperties = {
 
 export interface MessagesViewProps {
   threads: MessageThreadListItem[];
-  templates: MessageTemplate[];
   activeThreadId: string | null;
   onSelectThread: (id: string) => void;
   onSendReply: (threadId: string, body: string, replyToId?: string) => void | Promise<void>;
 }
-
-const sectionLabel: CSSProperties = {
-  fontFamily: "'Space Mono',monospace",
-  fontSize: 11,
-  letterSpacing: ".16em",
-  textTransform: "uppercase",
-  color: "rgba(var(--ink-rgb),.5)",
-};
 
 const monoMeta: CSSProperties = {
   fontFamily: "'Space Mono',monospace",
@@ -42,28 +33,40 @@ const monoMeta: CSSProperties = {
   color: "rgba(var(--ink-rgb),.45)",
 };
 
+// Only lets the panel itself scroll when it actually overflows, and stops the
+// gesture from chaining/bouncing into neighboring panels or the page.
+const scrollPane: CSSProperties = {
+  overflowY: "auto",
+  overscrollBehavior: "contain",
+};
+
 function formatWhen(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-export default function MessagesView({ threads, templates, activeThreadId, onSelectThread, onSendReply }: MessagesViewProps) {
+export default function MessagesView({ threads, activeThreadId, onSelectThread, onSendReply }: MessagesViewProps) {
   const active = threads.find((t) => t.id === activeThreadId) ?? threads[0] ?? null;
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // A newly-opened thread always starts with an empty composer — templates
-  // (and any in-flight quoted reply) shouldn't bleed into the next conversation.
+  // A newly-opened thread always starts with an empty composer — any in-flight
+  // quoted reply shouldn't bleed into the next conversation.
   useEffect(() => {
     setDraft("");
     setReplyTarget(null);
   }, [active?.id]);
 
-  function applyTemplate(body: string) {
-    setDraft((d) => (d.trim() ? `${d.replace(/\s+$/, "")}\n\n${body}` : body));
-  }
+  // Jump to the newest message whenever the open thread changes or a message
+  // is appended (own reply or the AI's), so the latest line is always in view.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [active?.id, active?.messages.length]);
 
   async function handleSend() {
     if (!active || !draft.trim() || sending) return;
@@ -77,45 +80,20 @@ export default function MessagesView({ threads, templates, activeThreadId, onSel
     }
   }
 
-  if (!active) {
-    return (
-      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "64px 40px 100px" }}>
-        <div style={sectionLabel}>No correspondence yet</div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ maxWidth: 1180, margin: "0 auto", padding: "64px 40px 100px" }}>
-      <header style={{ borderBottom: "1px solid rgba(var(--ink-rgb),.14)", paddingBottom: 8 }}>
-        <div data-reveal data-stagger="0" style={{ opacity: 0, transform: "translateY(28px)" }}>
-          <div style={{ ...sectionLabel, letterSpacing: ".22em" }}>Encyclopædia · Edition I</div>
-        </div>
-        <div data-reveal data-stagger="1" style={{ opacity: 0, transform: "translateY(28px)" }}>
-          <h1
-            style={{
-              fontFamily: "'Newsreader',Georgia,serif",
-              fontWeight: 400,
-              fontSize: "clamp(40px,6.4vw,72px)",
-              lineHeight: 0.98,
-              letterSpacing: "-.02em",
-              margin: "20px 0 0",
-            }}
-          >
-            Correspondence
-          </h1>
-        </div>
-        <div data-reveal data-stagger="2" style={{ opacity: 0, transform: "translateY(28px)", margin: "18px 0 26px" }}>
-          <p style={{ fontSize: 16, lineHeight: 1.55, maxWidth: 520, color: "rgba(var(--ink-rgb),.62)", margin: 0 }}>
-            Field dispatches between the Register and its cataloged specimens.
-          </p>
-        </div>
-      </header>
-
-      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 40, marginTop: 40, alignItems: "start" }}>
-        <div data-reveal data-stagger="3" style={{ opacity: 0, transform: "translateY(24px)", borderTop: "1px solid rgba(var(--ink-rgb),.12)" }}>
+    <div style={{ height: "100%", minHeight: 0, minWidth: 0, display: "grid", gridTemplateColumns: "320px 1fr" }}>
+      <div
+        style={{
+          height: "100%",
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          borderRight: "1px solid rgba(var(--ink-rgb),.14)",
+        }}
+      >
+        <div style={{ ...scrollPane, flex: 1, minHeight: 0 }}>
           {threads.map((t) => {
-            const isActive = t.id === active.id;
+            const isActive = active != null && t.id === active.id;
             const last = t.messages[t.messages.length - 1];
             return (
               <button
@@ -164,11 +142,23 @@ export default function MessagesView({ threads, templates, activeThreadId, onSel
             );
           })}
         </div>
+      </div>
 
-        <div data-reveal data-stagger="4" style={{ opacity: 0, transform: "translateY(24px)", minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid rgba(var(--ink-rgb),.14)", paddingBottom: 16 }}>
+      {active ? (
+        <div style={{ height: "100%", minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <div
+            style={{
+              flexShrink: 0,
+              minWidth: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              borderBottom: "1px solid rgba(var(--ink-rgb),.14)",
+              padding: "20px 32px",
+            }}
+          >
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: active.accent, flexShrink: 0 }} />
-            <div>
+            <div style={{ minWidth: 0 }}>
               <div style={{ fontFamily: "'Newsreader',Georgia,serif", fontSize: 20, display: "flex", alignItems: "center", gap: 8 }}>
                 <span>
                   {active.name} <span style={{ fontStyle: "italic", color: "rgba(var(--ink-rgb),.5)", fontSize: 15 }}>· {active.subtitle}</span>
@@ -179,13 +169,13 @@ export default function MessagesView({ threads, templates, activeThreadId, onSel
             </div>
           </div>
 
-          <div style={{ display: "grid", gap: 14, margin: "22px 0", maxHeight: 380, overflowY: "auto", paddingRight: 4 }}>
+          <div ref={scrollRef} style={{ ...scrollPane, flex: 1, minHeight: 0, minWidth: 0, display: "grid", alignContent: "start", gap: 14, padding: "22px 32px" }}>
             {active.messages.map((m) => {
               const mine = m.author === "registrar";
               const quoted = m.replyToId ? active.messages.find((x) => x.id === m.replyToId) : undefined;
               return (
-                <div key={m.id} className="msg-row" style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
-                  <div style={{ display: "flex", flexDirection: mine ? "row-reverse" : "row", alignItems: "flex-end", gap: 6, maxWidth: "84%" }}>
+                <div key={m.id} className="msg-row" style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start", minWidth: 0 }}>
+                  <div style={{ display: "flex", flexDirection: mine ? "row-reverse" : "row", alignItems: "flex-end", gap: 6, maxWidth: "84%", minWidth: 0 }}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start", minWidth: 0 }}>
                       <div
                         style={{
@@ -250,22 +240,7 @@ export default function MessagesView({ threads, templates, activeThreadId, onSel
             })}
           </div>
 
-          <div style={{ borderTop: "1px solid rgba(var(--ink-rgb),.14)", paddingTop: 16 }}>
-            <div style={{ ...sectionLabel, fontSize: 10 }}>Reply Templates</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-              {templates.map((tpl) => (
-                <button
-                  key={tpl.id}
-                  type="button"
-                  className="chip-button"
-                  onClick={() => applyTemplate(tpl.body)}
-                  style={{ borderColor: "rgba(var(--ink-rgb),.22)", background: "transparent", color: "rgba(var(--ink-rgb),.7)" }}
-                >
-                  {tpl.label}
-                </button>
-              ))}
-            </div>
-
+          <div style={{ flexShrink: 0, minWidth: 0, borderTop: "1px solid rgba(var(--ink-rgb),.14)", padding: "16px 32px" }}>
             {replyTarget && (
               <div
                 style={{
@@ -276,7 +251,7 @@ export default function MessagesView({ threads, templates, activeThreadId, onSel
                   background: "var(--panel)",
                   borderLeft: `3px solid ${active.accent}`,
                   padding: "8px 10px",
-                  marginTop: 14,
+                  marginBottom: 14,
                 }}
               >
                 <div style={{ overflow: "hidden", minWidth: 0 }}>
@@ -299,11 +274,16 @@ export default function MessagesView({ threads, templates, activeThreadId, onSel
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
               placeholder={replyTarget ? `Reply to ${replyTarget.author === "registrar" ? "yourself" : active.name}…` : `Reply to ${active.name}…`}
               rows={3}
               style={{
                 width: "100%",
-                marginTop: 14,
                 padding: "12px 14px",
                 fontFamily: "'Public Sans',system-ui,sans-serif",
                 fontSize: 14.5,
@@ -338,7 +318,11 @@ export default function MessagesView({ threads, templates, activeThreadId, onSel
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ ...monoMeta, fontSize: 11 }}>No correspondence yet</div>
+        </div>
+      )}
     </div>
   );
 }

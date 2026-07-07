@@ -5,11 +5,11 @@ import MessagesView from "./components/MessagesView";
 import ProfileView from "./components/ProfileView";
 import Sidebar, { MenuIcon } from "./components/Sidebar";
 import { getAIReply } from "./data/ai";
-import { getTemplates, getThreads, sendReply } from "./data/messages";
+import { getThreads, sendReply } from "./data/messages";
 import { getProfile } from "./data/profile";
 import { HEROES } from "./data/superheroes";
 import "./styles/global.css";
-import { HOUSES, MAX_STAT, type House, type MessageTemplate, type MessageThread, type UserProfile } from "./types";
+import { HOUSES, MAX_STAT, type House, type MessageThread, type UserProfile } from "./types";
 
 export interface AppProps {
   startHouse?: House;
@@ -47,7 +47,6 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
   const [prowessIndex, setProwessIndex] = useState(0);
   const [prowessDir, setProwessDir] = useState<1 | -1>(1);
   const [messageThreads, setMessageThreads] = useState<MessageThread[]>([]);
-  const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -410,9 +409,6 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
       setMessageThreads(threads);
       setActiveThreadId((cur) => cur ?? threads[0]?.id ?? null);
     });
-    getTemplates().then((templates) => {
-      if (!cancelled) setMessageTemplates(templates);
-    });
     return () => {
       cancelled = true;
     };
@@ -495,7 +491,7 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
       <button type="button" className="mobile-nav-toggle" onClick={() => setMobileNavOpen(true)} aria-label="Open menu">
         <MenuIcon />
       </button>
-      <div className="app-content" ref={rootRef}>
+      <div className={`app-content${view === "messages" ? " app-content--fixed" : ""}`} ref={rootRef}>
         {view === "index" ? (
           <IndexView heroes={list} houseChips={houseChips} total={HEROES.length} count={list.length} />
         ) : view === "detail" ? (
@@ -513,7 +509,7 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
             motion={motion}
           />
         ) : view === "messages" ? (
-          <MessagesView threads={threadList} templates={messageTemplates} activeThreadId={activeThreadIdResolved} onSelectThread={openThread} onSendReply={replyToThread} />
+          <MessagesView threads={threadList} activeThreadId={activeThreadIdResolved} onSelectThread={openThread} onSendReply={replyToThread} />
         ) : (
           <ProfileView profile={profile} />
         )}

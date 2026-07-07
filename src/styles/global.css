@@ -129,6 +129,15 @@ body {
   transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Messages view is a fixed-pane layout (thread list + chat both scroll
+   internally) rather than a page that scrolls with the window. */
+.app-content--fixed {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .sidebar-backdrop {
   display: none;
 }
