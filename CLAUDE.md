@@ -5,6 +5,8 @@ I'm working with TypeScript.
 I'm working with React.
 I'm using Vite as a build tool.
 On the start of every response, say my name.
+On every code change, update the README.md file to reflect the change.
+dont runa visual validation, ill handle that, just verify the project runs and the code is valid TypeScript/React.
 
 ## Commands
 
