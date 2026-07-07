@@ -99,6 +99,19 @@ body {
   animation: prowess-slide-in 0.38s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Message reply button: hidden until its row is hovered, WhatsApp/Instagram-style. */
+.msg-reply-btn {
+  opacity: 0;
+  transition: opacity 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.msg-row:hover .msg-reply-btn {
+  opacity: 1;
+}
+.msg-reply-btn:hover {
+  border-color: rgba(var(--ink-rgb), 0.5);
+  color: var(--ink);
+}
+
 /* ---------------------------------------------------------------------- */
 /* Sidebar                                                                 */
 /* ---------------------------------------------------------------------- */

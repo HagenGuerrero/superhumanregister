@@ -1,19 +1,22 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import DetailView from "./components/DetailView";
 import IndexView from "./components/IndexView";
+import MessagesView from "./components/MessagesView";
 import ProfileView from "./components/ProfileView";
 import Sidebar, { MenuIcon } from "./components/Sidebar";
+import { getAIReply } from "./data/ai";
+import { getTemplates, getThreads, sendReply } from "./data/messages";
 import { getProfile } from "./data/profile";
 import { HEROES } from "./data/superheroes";
 import "./styles/global.css";
-import { HOUSES, MAX_STAT, type House, type UserProfile } from "./types";
+import { HOUSES, MAX_STAT, type House, type MessageTemplate, type MessageThread, type UserProfile } from "./types";
 
 export interface AppProps {
   startHouse?: House;
   motion?: boolean;
 }
 
-type View = "index" | "detail" | "profile";
+type View = "index" | "detail" | "messages" | "profile";
 type Theme = "light" | "dark";
 
 const MOBILE_BREAKPOINT = 860;
@@ -43,6 +46,9 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [prowessIndex, setProwessIndex] = useState(0);
   const [prowessDir, setProwessDir] = useState<1 | -1>(1);
+  const [messageThreads, setMessageThreads] = useState<MessageThread[]>([]);
+  const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const flipSnapRef = useRef<Map<string, CardSnapshot> | null>(null);
@@ -81,6 +87,25 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
   const next = HEROES[(idx + 1) % HEROES.length];
   const prowessIdx = Math.min(prowessIndex, sel.prowess.length - 1);
 
+  const AI_ACCENT = "oklch(0.55 0.02 260)";
+
+  // Threads only carry a heroId/aiProvider (as a real API would); join in the
+  // display fields the view needs so MessagesView stays a dumb prop-in component.
+  const threadList = messageThreads.map((t) => {
+    if (t.kind === "ai") {
+      return { ...t, name: "Gemini", subtitle: "AI Assistant", house: undefined, accent: AI_ACCENT };
+    }
+    const hero = HEROES.find((h) => h.id === t.heroId);
+    return {
+      ...t,
+      name: hero?.name ?? "Unknown Correspondent",
+      subtitle: hero?.alias ?? "",
+      house: hero?.house,
+      accent: hero?.accent ?? "var(--ink)",
+    };
+  });
+  const activeThreadIdResolved = threadList.some((t) => t.id === activeThreadId) ? activeThreadId : threadList[0]?.id ?? null;
+
   function select(id: string) {
     setView("detail");
     setSelectedId(id);
@@ -90,6 +115,26 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
     const len = sel.prowess.length;
     setProwessDir(dir);
     setProwessIndex((i) => (Math.min(i, len - 1) + dir + len) % len);
+  }
+
+  function openThread(id: string) {
+    setActiveThreadId(id);
+    setMessageThreads((prev) => prev.map((t) => (t.id === id ? { ...t, unread: false } : t)));
+  }
+
+  function appendMessage(threadId: string, message: MessageThread["messages"][number]) {
+    setMessageThreads((prev) => prev.map((t) => (t.id === threadId ? { ...t, messages: [...t.messages, message], updatedAt: message.sentAt } : t)));
+  }
+
+  async function replyToThread(threadId: string, body: string, replyToId?: string) {
+    const message = await sendReply(threadId, body, replyToId);
+    appendMessage(threadId, message);
+
+    const thread = messageThreads.find((t) => t.id === threadId);
+    if (thread?.kind === "ai" && thread.aiProvider) {
+      const aiMessage = await getAIReply({ threadId, provider: thread.aiProvider, history: [...thread.messages, message], prompt: body });
+      appendMessage(threadId, aiMessage);
+    }
   }
 
   function setHouse(h: House) {
@@ -358,6 +403,21 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    getThreads().then((threads) => {
+      if (cancelled) return;
+      setMessageThreads(threads);
+      setActiveThreadId((cur) => cur ?? threads[0]?.id ?? null);
+    });
+    getTemplates().then((templates) => {
+      if (!cancelled) setMessageTemplates(templates);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // A newly-selected hero always starts on their first prowess entry.
   useEffect(() => {
     setProwessIndex(0);
@@ -421,6 +481,10 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
           setView("index");
           setMobileNavOpen(false);
         }}
+        onGoToMessages={() => {
+          setView("messages");
+          setMobileNavOpen(false);
+        }}
         onGoToProfile={() => {
           setView("profile");
           setMobileNavOpen(false);
@@ -448,6 +512,8 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
             onProwessNext={() => goProwess(1)}
             motion={motion}
           />
+        ) : view === "messages" ? (
+          <MessagesView threads={threadList} templates={messageTemplates} activeThreadId={activeThreadIdResolved} onSelectThread={openThread} onSendReply={replyToThread} />
         ) : (
           <ProfileView profile={profile} />
         )}

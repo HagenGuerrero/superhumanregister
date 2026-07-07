@@ -5,8 +5,9 @@ export interface SidebarProps {
   onToggleCollapsed: () => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
-  activeView: "index" | "detail" | "profile";
+  activeView: "index" | "detail" | "messages" | "profile";
   onGoToHeroes: () => void;
+  onGoToMessages: () => void;
   onGoToProfile: () => void;
   darkMode: boolean;
   onToggleDarkMode: () => void;
@@ -145,7 +146,7 @@ function DarkModeToggle({ collapsed, on, onToggle }: { collapsed: boolean; on: b
   );
 }
 
-export default function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobile, activeView, onGoToHeroes, onGoToProfile, darkMode, onToggleDarkMode }: SidebarProps) {
+export default function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobile, activeView, onGoToHeroes, onGoToMessages, onGoToProfile, darkMode, onToggleDarkMode }: SidebarProps) {
   return (
     <>
       <div className="sidebar-backdrop" data-open={mobileOpen} onClick={onCloseMobile} />
@@ -170,7 +171,7 @@ export default function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCl
           <NavItem icon={<HomeIcon />} label="Heroes" collapsed={collapsed} active={activeView === "index"} primary onClick={onGoToHeroes} />
           <div className="sidebar-divider" />
           <NavItem icon={<UsersIcon />} label="Friends" collapsed={collapsed} />
-          <NavItem icon={<MessageIcon />} label="Messages" collapsed={collapsed} />
+          <NavItem icon={<MessageIcon />} label="Messages" collapsed={collapsed} active={activeView === "messages"} onClick={onGoToMessages} />
           <NavItem icon={<BellIcon />} label="Notifications" collapsed={collapsed} />
         </nav>
 
