@@ -47,6 +47,20 @@ body {
   transform: none !important;
 }
 
+/* Power Grid bar fill: animates via a class toggle rather than a JS-driven
+   transition, same technique as [data-reveal].is-in above. */
+@keyframes bar-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(var(--bar-target, 1));
+  }
+}
+[data-bar].is-filling {
+  animation: bar-fill 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 .hero-card-link {
   display: block;
   cursor: pointer;
@@ -68,6 +82,21 @@ body {
   border-radius: 999px;
   border: 1px solid;
   transition: all 0.25s ease;
+}
+
+/* Signature Prowess carousel: slides in from the direction of travel (--slide-dir: 1 or -1). */
+@keyframes prowess-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(28px * var(--slide-dir, 1)));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.prowess-card {
+  animation: prowess-slide-in 0.38s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ---------------------------------------------------------------------- */

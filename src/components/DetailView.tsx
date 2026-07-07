@@ -19,6 +19,11 @@ export interface DetailViewProps {
   onBack: () => void;
   onPrev: () => void;
   onNext: () => void;
+  prowessIndex: number;
+  prowessDir: 1 | -1;
+  onProwessPrev: () => void;
+  onProwessNext: () => void;
+  motion?: boolean;
 }
 
 const sectionLabel: CSSProperties = {
@@ -57,7 +62,25 @@ const navLabel: CSSProperties = {
 
 const navName: CSSProperties = { fontFamily: "'Newsreader',Georgia,serif", fontSize: 20, marginTop: 5 };
 
-export default function DetailView({ sel, prevName, nextName, onBack, onPrev, onNext }: DetailViewProps) {
+const carouselBtn: CSSProperties = {
+  width: 26,
+  height: 26,
+  borderRadius: "50%",
+  border: "1px solid rgba(var(--ink-rgb),.22)",
+  background: "transparent",
+  color: "var(--ink)",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 14,
+  lineHeight: 1,
+  padding: 0,
+};
+
+export default function DetailView({ sel, prevName, nextName, onBack, onPrev, onNext, prowessIndex, prowessDir, onProwessPrev, onProwessNext, motion }: DetailViewProps) {
+  const prowess = sel.prowess[prowessIndex] ?? sel.prowess[0];
+  const hasMultipleProwess = sel.prowess.length > 1;
   return (
     <div style={{ maxWidth: 1080, margin: "0 auto", padding: "34px 40px 110px" }}>
       <div data-reveal data-stagger="0" style={{ opacity: 0, transform: "translateY(14px)" }}>
@@ -164,7 +187,11 @@ export default function DetailView({ sel, prevName, nextName, onBack, onPrev, on
                     {st.label}
                   </span>
                   <span style={{ position: "relative", height: 6, background: "rgba(var(--ink-rgb),.1)", borderRadius: 3, overflow: "hidden" }}>
-                    <span data-bar data-target={st.width} style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 0, background: sel.accent, borderRadius: 3 }} />
+                    <span
+                      data-bar
+                      data-target={st.width}
+                      style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: "100%", transform: "scaleX(0)", transformOrigin: "left", background: sel.accent, borderRadius: 3 }}
+                    />
                   </span>
                   <span data-count data-target={st.value} style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, textAlign: "right", color: "rgba(var(--ink-rgb),.55)" }}>
                     {st.value}
@@ -175,11 +202,70 @@ export default function DetailView({ sel, prevName, nextName, onBack, onPrev, on
           </section>
 
           <section data-reveal data-stagger="6" style={{ opacity: 0, transform: "translateY(24px)", marginTop: 42 }}>
-            <div style={{ border: "1px solid rgba(var(--ink-rgb),.14)", padding: "26px 28px", background: "var(--panel)", position: "relative", overflow: "hidden" }}>
-              <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: sel.accent }} />
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16 }}>
               <div style={sectionLabel}>Signature Prowess</div>
-              <h4 style={{ fontFamily: "'Newsreader',Georgia,serif", fontWeight: 450, fontSize: 30, margin: "12px 0 0", letterSpacing: "-.01em" }}>{sel.prowessLabel}</h4>
-              <p style={{ fontSize: 15, lineHeight: 1.55, color: "rgba(var(--ink-rgb),.62)", margin: "10px 0 0", maxWidth: 540, textWrap: "pretty" }}>{sel.prowessNote}</p>
+              {hasMultipleProwess && (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button type="button" onClick={onProwessPrev} aria-label="Previous prowess" style={carouselBtn}>
+                    ‹
+                  </button>
+                  <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10.5, letterSpacing: ".04em", color: "rgba(var(--ink-rgb),.45)" }}>
+                    {prowessIndex + 1} / {sel.prowess.length}
+                  </span>
+                  <button type="button" onClick={onProwessNext} aria-label="Next prowess" style={carouselBtn}>
+                    ›
+                  </button>
+                </div>
+              )}
+            </div>
+            <div
+              key={sel.id + "-" + prowessIndex}
+              className={motion !== false ? "prowess-card" : undefined}
+              style={
+                {
+                  border: "1px solid rgba(var(--ink-rgb),.14)",
+                  padding: "26px 28px",
+                  background: "var(--panel)",
+                  position: "relative",
+                  overflow: "hidden",
+                  marginTop: 14,
+                  "--slide-dir": prowessDir,
+                } as CSSProperties
+              }
+            >
+              <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: sel.accent }} />
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: 22, alignItems: "center" }}>
+                <div
+                  style={{
+                    position: "relative",
+                    aspectRatio: "1/1",
+                    background: "repeating-linear-gradient(135deg,var(--hatch-1),var(--hatch-1) 9px,var(--hatch-2) 9px,var(--hatch-2) 18px)",
+                    border: "1px solid rgba(var(--ink-rgb),.12)",
+                  }}
+                >
+                  <span style={{ position: "absolute", left: 0, top: 0, width: 20, height: 20, borderTop: `2px solid ${sel.accent}`, borderLeft: `2px solid ${sel.accent}` }} />
+                  <span
+                    style={{
+                      position: "absolute",
+                      left: 8,
+                      bottom: 8,
+                      right: 8,
+                      fontFamily: "'Space Mono',monospace",
+                      fontSize: 8.5,
+                      letterSpacing: ".06em",
+                      textTransform: "uppercase",
+                      color: "rgba(var(--ink-rgb),.42)",
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    Panel · {prowess.source}
+                  </span>
+                </div>
+                <div>
+                  <h4 style={{ fontFamily: "'Newsreader',Georgia,serif", fontWeight: 450, fontSize: 30, margin: 0, letterSpacing: "-.01em" }}>{prowess.label}</h4>
+                  <p style={{ fontSize: 15, lineHeight: 1.55, color: "rgba(var(--ink-rgb),.62)", margin: "10px 0 0", maxWidth: 540, textWrap: "pretty" }}>{prowess.note}</p>
+                </div>
+              </div>
             </div>
           </section>
 

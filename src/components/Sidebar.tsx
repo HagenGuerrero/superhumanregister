@@ -5,8 +5,9 @@ export interface SidebarProps {
   onToggleCollapsed: () => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
-  activeView: "index" | "detail";
+  activeView: "index" | "detail" | "profile";
   onGoToHeroes: () => void;
+  onGoToProfile: () => void;
   darkMode: boolean;
   onToggleDarkMode: () => void;
 }
@@ -144,7 +145,7 @@ function DarkModeToggle({ collapsed, on, onToggle }: { collapsed: boolean; on: b
   );
 }
 
-export default function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobile, activeView, onGoToHeroes, darkMode, onToggleDarkMode }: SidebarProps) {
+export default function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobile, activeView, onGoToHeroes, onGoToProfile, darkMode, onToggleDarkMode }: SidebarProps) {
   return (
     <>
       <div className="sidebar-backdrop" data-open={mobileOpen} onClick={onCloseMobile} />
@@ -175,7 +176,7 @@ export default function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCl
 
         <div className="sidebar-footer">
           <div className="sidebar-divider" />
-          <NavItem icon={<UserIcon />} label="Profile" collapsed={collapsed} />
+          <NavItem icon={<UserIcon />} label="Profile" collapsed={collapsed} active={activeView === "profile"} primary onClick={onGoToProfile} />
           <DarkModeToggle collapsed={collapsed} on={darkMode} onToggle={onToggleDarkMode} />
         </div>
       </aside>

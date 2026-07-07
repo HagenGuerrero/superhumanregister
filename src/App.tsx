@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import DetailView from "./components/DetailView";
 import IndexView from "./components/IndexView";
+import ProfileView from "./components/ProfileView";
 import Sidebar, { MenuIcon } from "./components/Sidebar";
+import { getProfile } from "./data/profile";
 import { HEROES } from "./data/superheroes";
 import "./styles/global.css";
-import { HOUSES, MAX_STAT, type House } from "./types";
+import { HOUSES, MAX_STAT, type House, type UserProfile } from "./types";
 
 export interface AppProps {
   startHouse?: House;
   motion?: boolean;
 }
 
-type View = "index" | "detail";
+type View = "index" | "detail" | "profile";
 type Theme = "light" | "dark";
 
 const MOBILE_BREAKPOINT = 860;
@@ -38,6 +40,9 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [prowessIndex, setProwessIndex] = useState(0);
+  const [prowessDir, setProwessDir] = useState<1 | -1>(1);
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const flipSnapRef = useRef<Map<string, CardSnapshot> | null>(null);
@@ -74,10 +79,17 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
   };
   const prev = HEROES[(idx - 1 + HEROES.length) % HEROES.length];
   const next = HEROES[(idx + 1) % HEROES.length];
+  const prowessIdx = Math.min(prowessIndex, sel.prowess.length - 1);
 
   function select(id: string) {
     setView("detail");
     setSelectedId(id);
+  }
+
+  function goProwess(dir: 1 | -1) {
+    const len = sel.prowess.length;
+    setProwessDir(dir);
+    setProwessIndex((i) => (Math.min(i, len - 1) + dir + len) % len);
   }
 
   function setHouse(h: House) {
@@ -192,9 +204,13 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
   function animateBars(container: Element) {
     const bars = Array.from(container.querySelectorAll<HTMLElement>("[data-bar]"));
     const counts = Array.from(container.querySelectorAll<HTMLElement>("[data-count]"));
+    // Scale on the X axis rather than transitioning `width` — width is a layout-
+    // triggering property, while transform stays compositor-only.
+    const scaleFor = (b: HTMLElement) => (parseFloat(b.dataset.target || "0") || 0) / 100;
     if (motion === false) {
       bars.forEach((b) => {
-        b.style.width = b.dataset.target || "0%";
+        b.classList.remove("is-filling");
+        b.style.transform = `scaleX(${scaleFor(b)})`;
       });
       counts.forEach((c) => {
         c.textContent = c.dataset.target || "";
@@ -202,15 +218,16 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
       return;
     }
     const LEAD = 450; // let the section settle into view before "calculating"
+    // Driven by a CSS @keyframes animation (toggled via a class) rather than a
+    // hand-rolled transition/rAF dance — the same reliable technique `reveal()`
+    // already uses for [data-reveal].is-in, since that combo has proven robust
+    // across browsers while the old transition-toggling approach wasn't.
     bars.forEach((b, i) => {
-      b.style.transition = "none";
-      b.style.width = "0%";
-      b.getBoundingClientRect(); // reflow so 0 is the start frame
-      requestAnimationFrame(() => {
-        b.style.transition = "width 1s cubic-bezier(.16,1,.3,1)";
-        b.style.transitionDelay = LEAD + i * 120 + "ms";
-        b.style.width = b.dataset.target || "0%";
-      });
+      b.classList.remove("is-filling");
+      b.style.setProperty("--bar-target", String(scaleFor(b)));
+      b.style.animationDelay = LEAD + i * 120 + "ms";
+      b.getBoundingClientRect(); // reflow so the class removal sticks before re-adding
+      b.classList.add("is-filling");
     });
     counts.forEach((c, i) => {
       const target = parseInt(c.dataset.target || "0", 10) || 0;
@@ -326,6 +343,21 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
     window.localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
+  useEffect(() => {
+    let cancelled = false;
+    getProfile().then((p) => {
+      if (!cancelled) setProfile(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // A newly-selected hero always starts on their first prowess entry.
+  useEffect(() => {
+    setProwessIndex(0);
+  }, [selectedId]);
+
   // componentDidUpdate equivalent — runs after view/activeHouse/selectedId change, but not on mount.
   useEffect(() => {
     if (!mountedRef.current) {
@@ -384,6 +416,10 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
           setView("index");
           setMobileNavOpen(false);
         }}
+        onGoToProfile={() => {
+          setView("profile");
+          setMobileNavOpen(false);
+        }}
         darkMode={theme === "dark"}
         onToggleDarkMode={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
       />
@@ -393,7 +429,7 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
       <div className="app-content" ref={rootRef}>
         {view === "index" ? (
           <IndexView heroes={list} houseChips={houseChips} total={HEROES.length} count={list.length} />
-        ) : (
+        ) : view === "detail" ? (
           <DetailView
             sel={sel}
             prevName={prev.name}
@@ -401,7 +437,14 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
             onBack={() => setView("index")}
             onPrev={() => select(prev.id)}
             onNext={() => select(next.id)}
+            prowessIndex={prowessIdx}
+            prowessDir={prowessDir}
+            onProwessPrev={() => goProwess(-1)}
+            onProwessNext={() => goProwess(1)}
+            motion={motion}
           />
+        ) : (
+          <ProfileView profile={profile} />
         )}
       </div>
     </div>

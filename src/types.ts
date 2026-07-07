@@ -11,6 +11,12 @@ export interface Stat {
   value: number;
 }
 
+export interface Prowess {
+  label: string;
+  note: string;
+  source: string;
+}
+
 export interface Hero {
   id: string;
   no: string;
@@ -25,8 +31,18 @@ export interface Hero {
   affiliations: string[];
   relationships: Relationship[];
   stats: Stat[];
-  prowessLabel: string;
-  prowessNote: string;
+  prowess: Prowess[];
 }
 
 export const MAX_STAT = 7;
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  handle: string;
+  title: string;
+  email: string;
+  bio: string;
+  accent: string;
+  memberSince: string;
+}
