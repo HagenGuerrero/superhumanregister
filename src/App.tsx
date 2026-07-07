@@ -40,7 +40,7 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
   const [view, setView] = useState<View>("index");
   const [activeHouse, setActiveHouse] = useState<House | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [profile, setProfile] = useState<UserProfile | null>(null);
