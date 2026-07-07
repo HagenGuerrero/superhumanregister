@@ -261,12 +261,17 @@ export default function App({ startHouse = "All", motion = true }: AppProps) {
   }
 
   // Fire the bar calc the first time the grid enters the viewport, per character.
+  // Reads view/selectedId off trackRef (not the closed-over params) because the
+  // scroll/resize listener below is wired up once on mount with an empty dep array —
+  // it always invokes the checkReveals/maybeAnimateBars instances captured at that
+  // first render, so plain closure variables here would stay stuck on their initial
+  // values ("index"/null) forever and this would never fire on scroll.
   function maybeAnimateBars() {
-    if (view !== "detail" || motion === false) return;
+    if (trackRef.current.view !== "detail" || motion === false) return;
     const root = rootRef.current || document;
     const bar = root.querySelector("[data-bar]");
     if (!bar) return;
-    const key = selectedId;
+    const key = trackRef.current.sel;
     if (barsDoneForRef.current === key) return;
     const section = bar.closest("[data-reveal]") || bar.parentElement;
     if (!section) return;
